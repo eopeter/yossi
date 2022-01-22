@@ -67,8 +67,8 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   var _isTyping = false;
   Timer? _timer;
   final Stream<QuerySnapshot> _contactStream = FirebaseFirestore.instance
-      .collection('addressBook')
-      .where('displayName', isNotEqualTo: 'Moderator')
+      .collection('addressBook').orderBy('displayName')
+      //.where('displayName', isNotEqualTo: 'Moderator')
       .snapshots();
   String? currentCallingId;
   StreamBuilder? callProgress;
@@ -233,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                                                     .data()!
                                                 as Map<String, dynamic>;
                                             var callStatus = call["status"];
-                                            if (callStatus == "completed") {
+                                            if (callStatus == "completed" || callStatus == "no-answer") {
                                               setState(() {
                                                 currentCallingId = null;
                                               });

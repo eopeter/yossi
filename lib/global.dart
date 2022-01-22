@@ -25,6 +25,10 @@ final callRequestRef = FirebaseFirestore.instance
 
 Future<bool?> createCallRequest(BuildContext context, String recipientId,
     String recipientName, String callerName, CallRequestCallback callback) async {
+  if (recipientId == userId) {
+    displayAlert(context, "Self Call", "You cannot call yourself");
+    return false;
+  }
   var docRef = callRequestRef.doc();
   docRef.set(CallRequest(
       from: userId,

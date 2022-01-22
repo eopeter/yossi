@@ -11,7 +11,6 @@ const {VoiceGrant} = AccessToken;
 const twilioConfig = functions.config().twilio;
 const accountSid = twilioConfig.account_sid;
 const authToken = twilioConfig.auth_token;
-const moderator = "Da9faUE61nYVXwBqjnEsAhPu8If1";
 
 /**
  * Creates an access token with VoiceGrant using your Twilio credentials.
@@ -105,10 +104,10 @@ exports.createCallRequest = functions.firestore
           .create({
             twiml: `<Response><Say>Please wait while we connect you to ${fromName}</Say>${play}</Response>`,
             to: `client:${to}`,
-            from: `client:${moderator}`,
+            from: `client:${from}`,
             callerId: from,
             statusCallback: "https://us-central1-yossi-47f69.cloudfunctions.net/callStatus",
-            statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+            statusCallbackEvent: ["initiated", "ringing", "answered", "completed", "no-answer"],
             statusCallbackMethod: "POST",
           })
           .then((c) => {
