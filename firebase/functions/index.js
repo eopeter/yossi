@@ -92,8 +92,6 @@ exports.createCallRequest = functions.firestore
     .document("callRequest/{id}")
     .onCreate((snap, context) => {
       const newCallRequest = snap.data();
-
-      // access a particular field as you would any JS property
       const to = newCallRequest.to;
       const from = newCallRequest.from;
       const fromName = newCallRequest.fromName;

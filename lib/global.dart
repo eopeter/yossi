@@ -8,6 +8,9 @@ import 'models/callRequest.dart';
 import 'models/contact.dart';
 
 late String userId;
+late String callerDisplayName;
+String currentCallingId = "-1";
+
 typedef void CallRequestCallback(String? callId, String? error);
 
 final addressBookRef = FirebaseFirestore.instance

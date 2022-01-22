@@ -11,6 +11,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:twilio_voice/twilio_voice.dart';
 import 'package:yossi/models/contact.dart';
+import 'Widgets/contact_list.dart';
 import 'dialer.dart';
 import 'firebase_config.dart';
 import 'global.dart';
@@ -66,12 +67,6 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   late TextEditingController _callerNameController;
   var _isTyping = false;
   Timer? _timer;
-  final Stream<QuerySnapshot> _contactStream = FirebaseFirestore.instance
-      .collection('addressBook').orderBy('displayName')
-      //.where('displayName', isNotEqualTo: 'Moderator')
-      .snapshots();
-  String? currentCallingId;
-  StreamBuilder? callProgress;
 
   @override
   void initState() {
@@ -161,95 +156,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             Expanded(
               child: Stack(
                 children: [
-                  StreamBuilder(
-                    stream: _contactStream,
-                    builder: (BuildContext context,
-                        AsyncSnapshot<QuerySnapshot> snapshot) {
-                      if (snapshot.hasError) {
-                        return const Text('Something went wrong');
-                      }
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Text("Loading");
-                      }
-                      if (!snapshot.hasData) {
-                        return noDataWidget();
-                      }
-                      return ListView(
-                        children: snapshot.data!.docs
-                            .map((DocumentSnapshot document) {
-                          Map<String, dynamic> data =
-                              document.data()! as Map<String, dynamic>;
-                          var displayName = data['displayName'] as String;
-                          var isCalling = currentCallingId == data['uid'];
-                          TwilioVoice.instance
-                              .registerClient(data['uid'], displayName);
-                          return Column(
-                            children: [
-                              ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.blue,
-                                  child: Text(displayName
-                                      .substring(0, 1)
-                                      .toUpperCase()),
-                                ),
-                                title: Text(data['displayName']),
-                                trailing: ElevatedButton(
-                                  onPressed: isCalling
-                                      ? null
-                                      : () async {
-                                          await createCallRequest(
-                                              context,
-                                              data['uid'],
-                                              data['displayName'],
-                                              _callerNameController.text,
-                                              (id, error) {
-                                            if (error == null) {
-                                              isCalling = true;
-                                              setState(() {
-                                                currentCallingId = id;
-                                              });
-                                            } else {
-                                              setState(() {
-                                                currentCallingId = null;
-                                              });
-                                              displayAlert(
-                                                  context,
-                                                  "Dial Failed",
-                                                  "An error occurred while creating the dial request");
-                                            }
-                                          });
-                                        },
-                                  child: isCalling
-                                      ? StreamBuilder(
-                                          stream: FirebaseFirestore.instance
-                                              .collection('callRequest')
-                                              .where('id',
-                                                  isEqualTo: currentCallingId)
-                                              .snapshots(),
-                                          builder: (BuildContext context,
-                                              AsyncSnapshot<QuerySnapshot>
-                                                  snapshot) {
-                                            var call = snapshot.data!.docs.first
-                                                    .data()!
-                                                as Map<String, dynamic>;
-                                            var callStatus = call["status"];
-                                            if (callStatus == "completed" || callStatus == "no-answer") {
-                                              setState(() {
-                                                currentCallingId = null;
-                                              });
-                                            }
-                                            return Text(callStatus);
-                                          })
-                                      : const Text("Dial Request"),
-                                ),
-                              ),
-                              const Divider()
-                            ],
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ),
+                  ContactList(_callerNameController.text),
                   Positioned(
                       right: 10,
                       bottom: 10,
@@ -361,9 +268,11 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         addressBookRef.where('uid', isEqualTo: userId).get().then((value) {
           if (value.docs.isNotEmpty) {
             _callerNameController.text = value.docs[0].data().displayName;
+            callerDisplayName = _callerNameController.text;
           } else {
             var str = getRandomString(5);
             _callerNameController.text = str;
+            callerDisplayName = _callerNameController.text;
             addressBookRef
                 .where('displayName', isEqualTo: str)
                 .get()
@@ -471,6 +380,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
         doc.update(<String, dynamic>{"displayName": str});
         displayAlert(context, "Name Changed",
             "Your incoming call name has been changed to $str");
+        callerDisplayName = str;
         dismissKeyBoard(context);
       } else {
         addressBookRef.where('displayName', isEqualTo: str).get().then((exist) {
@@ -478,7 +388,9 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
             addressBookRef.doc().set(Contact(uid: userId, displayName: str));
             displayAlert(context, "Name Changed",
                 "Your incoming call name has been changed to $str");
+            callerDisplayName = str;
             dismissKeyBoard(context);
+
           } else {
             displayAlert(
                 context, "Name Taken", "The name $str is already taken");
@@ -494,43 +406,5 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     if (!currentFocus.hasPrimaryFocus) {
       currentFocus.unfocus();
     }
-  }
-
-  Widget noDataWidget() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.star,
-              size: 40,
-              color: Colors.grey.withOpacity(0.2),
-            ),
-            Icon(
-              Icons.people,
-              size: 120,
-              color: Colors.grey.withOpacity(0.5),
-            ),
-            Icon(
-              Icons.access_time,
-              size: 40,
-              color: Colors.grey.withOpacity(0.2),
-            )
-          ],
-        ),
-        Text(
-          'List of Users You Can Call. \nClick the button below to dial a number \nor enter a name above to dial by name',
-          textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .subtitle1
-              ?.copyWith(color: Colors.grey.withOpacity(0.5)),
-        )
-      ],
-    );
   }
 }
