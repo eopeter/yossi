@@ -4,7 +4,7 @@ const http = require('http');
 const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser')
-const methods = require('./src/makecall.js');
+const methods = require('./src/notify.js');
 const tokenGenerator = methods.tokenGenerator;
 
 var twilio = require('twilio');

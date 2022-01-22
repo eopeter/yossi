@@ -3,13 +3,14 @@ require('dotenv').load();
 const AccessToken = require('twilio').jwt.AccessToken;
 const VoiceGrant = AccessToken.VoiceGrant;
 const VoiceResponse = require('twilio').twiml.VoiceResponse;
+//const client = require('twilio');
 
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
+const notifyServiceSid = process.env.NOTIFY_SERVICE_SID;
+
 const client = require('twilio')(accountSid, authToken);
 
-// Update with your own phone number in E.164 format
-const MODERATOR = 'client:Da9faUE61nYVXwBqjnEsAhPu8If1'; //'+16072988312';
 
 /**
  * Creates an endpoint that can be used in your TwiML App as the Voice Request Url.
@@ -24,10 +25,10 @@ const MODERATOR = 'client:Da9faUE61nYVXwBqjnEsAhPu8If1'; //'+16072988312';
  * @returns {Object} - The Response Object with TwiMl, used to respond to an outgoing call
  */
 exports.handler = function(context, event, callback) {
+    // The recipient of the call, a phone number or a client
     console.log(event);
     const from = event.From;
     let to = event.to;
-
     if(isEmptyOrNull(to)) {
         to = event.To;
         if(isEmptyOrNull(to)) {
@@ -38,15 +39,17 @@ exports.handler = function(context, event, callback) {
 
     const twiml = new VoiceResponse();
     console.log(`Calling [${from}] -> [${to}]`)
-
     if (!to) {
-        twiml.say("Welcome, you made your first call.");
+        twiml.say("You did not specify whom you wanted to call");
     } else if (isNumber(to)) {
-        const dial = twiml.dial({callerId : MODERATOR});
-        dial.number(to);
-    } else {
-        const dial = twiml.dial({callerId: MODERATOR, timeout: 30, record: "record-from-answer-dual", trim: "trim-silence", method: "POST", action:`/conference`});
-        dial.client(to);
+      const dial = twiml.dial({callerId : from});
+      dial.number(to);
+  } else {
+        console.log('notify the client via Push of Call Intent');
+        client.notify.services(notifyServiceSid)
+            .notifications
+            .create({body: 'You have an incoming call from Emmanuel Oche', identity: [to]})
+            .then(notification => console.log(notification.sid));
     }
     callback(null, twiml);
 }
@@ -56,23 +59,23 @@ const isEmptyOrNull = (s) => {
 }
 
 function isNumber(to) {
-    if(to.length == 1) {
-        if(!isNaN(to)) {
-            console.log("It is a 1 digit long number" + to);
-            return true;
-        }
-    } else if(String(to).charAt(0) == '+') {
-        number = to.substring(1);
-        if(!isNaN(number)) {
-            console.log("It is a number " + to);
-            return true;
-        };
-    } else {
-        if(!isNaN(to)) {
-            console.log("It is a number " + to);
-            return true;
-        }
+  if(to.length == 1) {
+    if(!isNaN(to)) {
+      console.log("It is a 1 digit long number" + to);
+      return true;
     }
-    console.log("not a number");
-    return false;
+  } else if(String(to).charAt(0) == '+') {
+    number = to.substring(1);
+    if(!isNaN(number)) {
+      console.log("It is a number " + to);
+      return true;
+    };
+  } else {
+    if(!isNaN(to)) {
+      console.log("It is a number " + to);
+      return true;
+    }
+  }
+  console.log("not a number");
+  return false;
 }

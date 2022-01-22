@@ -173,7 +173,7 @@ packages:
       path: "../../Plugins/flutter_dialpad"
       relative: true
     source: path
-    version: "1.0.1"
+    version: "1.0.2"
   flutter_dotenv:
     dependency: "direct main"
     description:

@@ -4,13 +4,6 @@ const AccessToken = require('twilio').jwt.AccessToken;
 const VoiceGrant = AccessToken.VoiceGrant;
 const VoiceResponse = require('twilio').twiml.VoiceResponse;
 
-const accountSid = process.env.ACCOUNT_SID;
-const authToken = process.env.AUTH_TOKEN;
-const client = require('twilio')(accountSid, authToken);
-
-// Update with your own phone number in E.164 format
-const MODERATOR = 'client:Da9faUE61nYVXwBqjnEsAhPu8If1'; //'+16072988312';
-
 /**
  * Creates an endpoint that can be used in your TwiML App as the Voice Request Url.
  * <br><br>
@@ -24,10 +17,10 @@ const MODERATOR = 'client:Da9faUE61nYVXwBqjnEsAhPu8If1'; //'+16072988312';
  * @returns {Object} - The Response Object with TwiMl, used to respond to an outgoing call
  */
 exports.handler = function(context, event, callback) {
+    // The recipient of the call, a phone number or a client
     console.log(event);
-    const from = event.From;
+    const from = event.From; //"+16072988312";
     let to = event.to;
-
     if(isEmptyOrNull(to)) {
         to = event.To;
         if(isEmptyOrNull(to)) {
@@ -38,14 +31,13 @@ exports.handler = function(context, event, callback) {
 
     const twiml = new VoiceResponse();
     console.log(`Calling [${from}] -> [${to}]`)
-
     if (!to) {
         twiml.say("Welcome, you made your first call.");
     } else if (isNumber(to)) {
-        const dial = twiml.dial({callerId : MODERATOR});
+        const dial = twiml.dial({callerId : from});
         dial.number(to);
     } else {
-        const dial = twiml.dial({callerId: MODERATOR, timeout: 30, record: "record-from-answer-dual", trim: "trim-silence", method: "POST", action:`/conference`});
+        const dial = twiml.dial({callerId: to, timeout: 30, record: "record-from-answer-dual", trim: "trim-silence"});
         dial.client(to);
     }
     callback(null, twiml);

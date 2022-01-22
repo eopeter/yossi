@@ -22,7 +22,7 @@ class DialerPageState extends State<DialerPage> {
             backspaceButtonIconColor: Colors.red,
             buttonColor: Colors.grey,
             makeCall: (number) {
-              beginMakeCall(context, number, isNumber: true);
+              beginMakeCall(context, number, null, isNumber: true);
             })
       ],),
     );

@@ -66,8 +66,12 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   late TextEditingController _callerNameController;
   var _isTyping = false;
   Timer? _timer;
-  final Stream<QuerySnapshot> _contactStream =
-      FirebaseFirestore.instance.collection('addressBook').snapshots();
+  final Stream<QuerySnapshot> _contactStream = FirebaseFirestore.instance
+      .collection('addressBook')
+      .where('displayName', isNotEqualTo: 'Moderator')
+      .snapshots();
+  String? currentCallingId;
+  StreamBuilder? callProgress;
 
   @override
   void initState() {
@@ -150,7 +154,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                             )
                           : IconButton(
                               onPressed: () {
-                                beginMakeCall(context, _controller.text);
+                                beginMakeCall(context, _controller.text, null);
                               },
                               icon: const Icon(Icons.phone)))),
             ),
@@ -176,17 +180,68 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                           Map<String, dynamic> data =
                               document.data()! as Map<String, dynamic>;
                           var displayName = data['displayName'] as String;
+                          var isCalling = currentCallingId == data['uid'];
+                          TwilioVoice.instance
+                              .registerClient(data['uid'], displayName);
                           return Column(
                             children: [
                               ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: Colors.blue,
-                                  child: Text(displayName.substring(0, 1)),
+                                  child: Text(displayName
+                                      .substring(0, 1)
+                                      .toUpperCase()),
                                 ),
                                 title: Text(data['displayName']),
-                                onTap: () {
-                                  beginMakeCall(context, data['displayName']);
-                                },
+                                trailing: ElevatedButton(
+                                  onPressed: isCalling
+                                      ? null
+                                      : () async {
+                                          await createCallRequest(
+                                              context,
+                                              data['uid'],
+                                              data['displayName'],
+                                              _callerNameController.text,
+                                              (id, error) {
+                                            if (error == null) {
+                                              isCalling = true;
+                                              setState(() {
+                                                currentCallingId = id;
+                                              });
+                                            } else {
+                                              setState(() {
+                                                currentCallingId = null;
+                                              });
+                                              displayAlert(
+                                                  context,
+                                                  "Dial Failed",
+                                                  "An error occurred while creating the dial request");
+                                            }
+                                          });
+                                        },
+                                  child: isCalling
+                                      ? StreamBuilder(
+                                          stream: FirebaseFirestore.instance
+                                              .collection('callRequest')
+                                              .where('id',
+                                                  isEqualTo: currentCallingId)
+                                              .snapshots(),
+                                          builder: (BuildContext context,
+                                              AsyncSnapshot<QuerySnapshot>
+                                                  snapshot) {
+                                            var call = snapshot.data!.docs.first
+                                                    .data()!
+                                                as Map<String, dynamic>;
+                                            var callStatus = call["status"];
+                                            if (callStatus == "completed") {
+                                              setState(() {
+                                                currentCallingId = null;
+                                              });
+                                            }
+                                            return Text(callStatus);
+                                          })
+                                      : const Text("Dial Request"),
+                                ),
                               ),
                               const Divider()
                             ],

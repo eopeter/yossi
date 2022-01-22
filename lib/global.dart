@@ -4,25 +4,57 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:twilio_voice/twilio_voice.dart';
 import 'call.dart';
+import 'models/callRequest.dart';
 import 'models/contact.dart';
 
 late String userId;
+typedef void CallRequestCallback(String? callId, String? error);
+
 final addressBookRef = FirebaseFirestore.instance
     .collection('addressBook')
     .withConverter<Contact>(
         fromFirestore: (snapshots, _) => Contact.fromJson(snapshots.data()!),
         toFirestore: (contact, _) => contact.toJson());
 
-Future<bool?> beginMakeCall(BuildContext context, String number,
-    {bool isNumber = false}) async {
+final callRequestRef = FirebaseFirestore.instance
+    .collection('callRequest')
+    .withConverter<CallRequest>(
+        fromFirestore: (snapshots, _) =>
+            CallRequest.fromJson(snapshots.data()!),
+        toFirestore: (contact, _) => contact.toJson());
+
+Future<bool?> createCallRequest(BuildContext context, String recipientId,
+    String recipientName, String callerName, CallRequestCallback callback) async {
+  var docRef = callRequestRef.doc();
+  docRef.set(CallRequest(
+      from: userId,
+      fromName: callerName,
+      to: recipientId,
+      displayName: recipientName,
+      status: "sending",
+      timeStamp: DateTime.now()))
+      .then((d)=> callback(docRef.id, null))
+      .catchError((error) {
+        callback(null, "Failed");
+  });
+}
+
+Future<bool?> beginMakeCall(
+    BuildContext context, String number, VoidCallback? callback,
+    {bool isNumber = false, bool hideProgressScreen = false}) async {
   if (!await (TwilioVoice.instance.hasMicAccess())) {
     print("request mic access");
     TwilioVoice.instance.requestMicAccess();
     return false;
   }
-  if(isNumber){
+  if (isNumber) {
     TwilioVoice.instance.call.place(to: number, from: userId);
-    pushToCallScreen(context);
+    if (!hideProgressScreen) {
+      pushToCallScreen(context);
+    }
+    if (callback != null) {
+      callback();
+    }
     return true;
   }
 
@@ -31,12 +63,17 @@ Future<bool?> beginMakeCall(BuildContext context, String number,
       var contact = value.docs[0];
       print("starting call to $value");
       var num = contact.data().uid;
-      if(num == userId){
+      if (num == userId) {
         displayAlert(context, "Self Call", "You cannot call yourself");
         return false;
       }
       TwilioVoice.instance.call.place(to: num, from: userId);
-      pushToCallScreen(context);
+      if (!hideProgressScreen) {
+        pushToCallScreen(context);
+      }
+      if (callback != null) {
+        callback();
+      }
       return true;
     } else {
       print("no user with name: $number exists");
