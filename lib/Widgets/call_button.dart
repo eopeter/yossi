@@ -47,7 +47,6 @@ class _CallButtonState extends State<CallButton> {
           }
           var call = snapshot.data!.docs.first.data()! as Map<String, dynamic>;
           var callStatus = call["status"] as String;
-          if(callStatus == "initiated") callStatus = "ringing";
           if (callStatus == "completed" || callStatus == "no-answer" || callStatus == "busy") {
             currentCallingId = "-1";
             if(mounted){

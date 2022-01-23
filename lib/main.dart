@@ -325,7 +325,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   void waitForCall() {
     checkActiveCall();
     TwilioVoice.instance.callEventsListener
-      ..listen((event) {
+      .listen((event) {
         print("voip-onCallStateChanged $event");
 
         switch (event) {

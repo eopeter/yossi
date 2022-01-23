@@ -105,7 +105,7 @@ exports.createCallRequest = functions.firestore
             from: `client:${from}`,
             callerId: from,
             statusCallback: "https://us-central1-yossi-47f69.cloudfunctions.net/callStatus",
-            statusCallbackEvent: ["initiated", "ringing", "answered", "completed", "no-answer"],
+            statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
             statusCallbackMethod: "POST",
           })
           .then((c) => {
@@ -129,11 +129,10 @@ function handleCallStatus(data, res) {
   if (callSid && status) {
     const callRef = admin
         .firestore().collection("callRequest").where("callSid", "==", callSid);
-    if (status === "in-progress") {
-      console.log("call is progress. will connect");
-      callRef.get().then((calls) => {
-        if (!calls.empty) {
-          const data = calls.docs[0].data();
+    callRef.get().then((calls) => {
+      if (!calls.empty) {
+        const data = calls.docs[0].data();
+        if (status === "in-progress" && data["status"] != "in-progress") {
           // connect call
           const from = data["from"];
           const twilio = new Twilio(accountSid, authToken);
@@ -143,22 +142,15 @@ function handleCallStatus(data, res) {
                 res.status(201).end();
               });
         } else {
-          res.status(404).end();
-        }
-      });
-    }
-
-    callRef.get().then((calls) => {
-      if (!calls.empty) {
-        console.log("found the call");
-        calls.forEach((doc) => {
+          // just update the call status
+          const doc = calls.docs[0];
           doc.ref.update({
             status,
             when: new Date().toISOString(),
           }).then((snapshot) => {
             res.status(201).end();
           });
-        });
+        }
       } else {
         res.status(404).end();
       }
